@@ -114,13 +114,25 @@ Y.namespace('M.atto_titlewbq').Button = Y.Base.create('button', Y.M.editor_atto.
             // Check whether the selection is collapsed and at start of a node.
             var selection = window.rangy.getSelection();
             if (!selection.isCollapsed ||
-                !Y.one(selection.anchorNode).ancestor('blockquote', true) ||
                 (!selection.anchorNode.tagName && selection.anchorOffset)) {
                 return;
             }
-            // Check whether anchor node is a text node and find node marking start.
-            var precedingText = '';
+
+            // This is a work around for separate problems in Chrome and Firefox when joining lines.
+            if (!Y.one(selection.anchorNode).ancestor('blockquote', true)) {
+                var child = Y.one(selection.anchorNode).ancestor('div.editor_atto_content >', true);
+                // Check whether line without blockquote is to be adjoined to one with blockquote.
+                if ((child && child.previous() && child.previous().test('blockquote')) ||
+                        (this.editor.compareTo(selection.anchorNode) &&
+                            selection.anchorNode.childNodes.item(selection.anchorOffset - 1))) {
+                    // Add the blockquote with exeCommand to ease the transition.
+                    document.execCommand('indent', false, null);
+                }
+                return;
+            }
+
             // Recursely search to find whether there is text before node after newline in block.
+            var precedingText = '';
             function getPrecedingText(node) {
                 if (!node.previousSibling) {
                     var parent = node.parentNode;
@@ -138,9 +150,8 @@ Y.namespace('M.atto_titlewbq').Button = Y.Base.create('button', Y.M.editor_atto.
                     getPrecedingText(node.previousSibling);
             }
             if (selection.anchorOffset !== 0) {
-                // if (!selection.anchorNode.tagName || selection.anchorNode.tagName === '#text') {
                 if (selection.anchorNode.hasChildNodes()) {
-                // Find text before the node indicated by offset.
+                    // Find text before the node indicated by offset.
                     precedingText = getPrecedingText(selection.anchorNode.childNodes.item(selection.anchorOffset));
                 } else {
                     // Offset points to position in string.
@@ -152,22 +163,14 @@ Y.namespace('M.atto_titlewbq').Button = Y.Base.create('button', Y.M.editor_atto.
                 precedingText = getPrecedingText(selection.anchorNode);
             }
 
-            if(precedingText.replace(/.*\n/, '')) {
+            if (precedingText.replace(/.*\n/, '')) {
                 return;
-            }
-
-            if (Y.one(selection.anchorNode).ancestor(BLOCKS_SELECTOR, true, '.atto-editor-content')) {
-                document.execCommand('formatBlock', false, 'p');
             }
 
             // If this beginning of line, outdent the blockquote.
             e.preventDefault();
             this.safeOutdent();
 
-            // Mark as updated
-            this.markUpdated();
-
-            this.get('host').saveSelection();
         }, 'backspace', this);
 
         return this;
