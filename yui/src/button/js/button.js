@@ -118,6 +118,29 @@ Y.namespace('M.atto_titlewbq').Button = Y.Base.create('button', Y.M.editor_atto.
                 return;
             }
 
+            // Mark prexistant span elements.
+            this.editor.all('span').addClass('prexisting');
+
+            // Fish out span elements that are created by browser after a backspace.
+            Y.soon(Y.bind(function() {
+                var hook = Y.Node.create('<span class="prexisting"></span>');
+                var line = this.get('host').insertContentAtFocusPoint('<span class="prexisting"></span>');
+                this.editor.all('span').each(function(span)  {
+                    if (span.test('.prexisting')) {
+                        return;
+                    }
+                    span.append(hook);
+                    hook.unwrap();
+                });
+                // Clean up markers.
+                this.editor.all('span[class="prexisting"]').removeAttribute('class');
+                this.editor.all('span.prexisting').removeClass('prexisting');
+                var selection = window.rangy.getSelection();
+                selection.collapse(line.getDOMNode(), 0);
+                hook.remove(true);
+                line.remove(true);
+            }, this));
+
             // This is a work around for separate problems in Chrome and Firefox when joining lines.
             if (!Y.one(selection.anchorNode).ancestor('blockquote', true)) {
                 var child = Y.one(selection.anchorNode).ancestor('div.editor_atto_content >', true);
