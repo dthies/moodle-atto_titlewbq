@@ -143,19 +143,6 @@ Y.namespace('M.atto_titlewbq').Button = Y.Base.create('button', Y.M.editor_atto.
                 line.remove(true);
             }, this));
 
-            // This is a work around for separate problems in Chrome and Firefox when joining lines.
-            if (!Y.one(selection.anchorNode).ancestor('blockquote', true)) {
-                var child = Y.one(selection.anchorNode).ancestor('div.editor_atto_content >', true);
-                // Check whether line without blockquote is to be adjoined to one with blockquote.
-                if ((child && child.previous() && child.previous().test('blockquote')) ||
-                        (this.editor.compareTo(selection.anchorNode) &&
-                            selection.anchorNode.childNodes.item(selection.anchorOffset - 1))) {
-                    // Add the blockquote with exeCommand to ease the transition.
-                    document.execCommand('indent', false, null);
-                }
-                return;
-            }
-
             // Recursely search to find whether there is text before node after newline in block.
             var precedingText = '';
             function getPrecedingText(node) {
@@ -195,6 +182,13 @@ Y.namespace('M.atto_titlewbq').Button = Y.Base.create('button', Y.M.editor_atto.
             // If this beginning of line, outdent the blockquote.
             e.preventDefault();
             this.safeOutdent();
+
+            // Firefox will not save selection correctly in editor is anchor node.
+            if (this.editor.compareTo(selection.anchorNode)) {
+               var range = selection.getRangeAt(0);
+               range.collapseToPoint(selection.anchorNode.childNodes.item(selection.anchorOffset), 0);
+               selection.setSingleRange(range);
+            }
 
         }, 'backspace', this);
 
