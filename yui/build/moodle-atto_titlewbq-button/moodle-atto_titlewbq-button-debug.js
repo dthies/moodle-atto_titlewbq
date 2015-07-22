@@ -124,7 +124,7 @@ Y.namespace('M.atto_titlewbq').Button = Y.Base.create('button', Y.M.editor_atto.
             this.preventStyling();
 
             // Check whether there is a blockquote to escape. Otherwise exit.
-            if (!Y.one(this.getSelectionParentNode()).ancestor('blockquote', true, 'div.editor_atto_content')) {
+            if (!Y.one(this.get('host').getSelectionParentNode()).ancestor('blockquote', true, 'div.editor_atto_content')) {
                 return;
             }
 
@@ -246,7 +246,8 @@ Y.namespace('M.atto_titlewbq').Button = Y.Base.create('button', Y.M.editor_atto.
         this.editor.all('.rangySelectionBoundary').setStyle('display', null);
 
         // Find an ancestor of all blockquotes that may be outdented.
-        var container = Y.one(this.getSelectionParentNode()).ancestor('blockquote', true) || Y.one(this.getSelectionParentNode());
+        var container = Y.one(this.get('host').getSelectionParentNode()).ancestor('blockquote', true) ||
+                Y.one(this.get('host').getSelectionParentNode());
         container
             .all('blockquote')
             .each(function(blockquote) {
