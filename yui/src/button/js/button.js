@@ -211,7 +211,7 @@ Y.namespace('M.atto_titlewbq').Button = Y.Base.create('button', Y.M.editor_atto.
             window.rangy.restoreSelection(selection);
 
             // Save selection so that editor restores it correctly if focus is lost.
-            this.saveSelection();
+            this.get('host').saveSelection();
         }, this));
     },
 
