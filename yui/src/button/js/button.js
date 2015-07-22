@@ -100,7 +100,7 @@ Y.namespace('M.atto_titlewbq').Button = Y.Base.create('button', Y.M.editor_atto.
         this.markUpdated();
     },
  
-     /**
+    /**
      * Listen for a backspace at the beginning of line and then exit an indent or block quotation.
      *
      * @method setupEscapeBlockquote
@@ -118,28 +118,13 @@ Y.namespace('M.atto_titlewbq').Button = Y.Base.create('button', Y.M.editor_atto.
                 return;
             }
 
-            // Mark prexistant span elements.
-            this.editor.all('span').addClass('prexisting');
+            // Prevent Chrome and Safari adding style tags when joining adjacent lines.
+            this.preventStyling();
 
-            // Fish out span elements that are created by browser after a backspace.
-            Y.soon(Y.bind(function() {
-                var hook = Y.Node.create('<span class="prexisting"></span>');
-                var line = this.get('host').insertContentAtFocusPoint('<span class="prexisting"></span>');
-                this.editor.all('span').each(function(span)  {
-                    if (span.test('.prexisting')) {
-                        return;
-                    }
-                    span.append(hook);
-                    hook.unwrap();
-                });
-                // Clean up markers.
-                this.editor.all('span[class="prexisting"]').removeAttribute('class');
-                this.editor.all('span.prexisting').removeClass('prexisting');
-                var selection = window.rangy.getSelection();
-                selection.collapse(line.getDOMNode(), 0);
-                hook.remove(true);
-                line.remove(true);
-            }, this));
+            // Check whether there is a blockquote to escape. Otherwise exit.
+            if (!Y.one(this.getSelectionParentNode()).ancestor('blockquote', true, 'div.editor_atto_content')) {
+                return;
+            }
 
             // Recursely search to find whether there is text before node after newline in block.
             var precedingText = '';
@@ -159,6 +144,7 @@ Y.namespace('M.atto_titlewbq').Button = Y.Base.create('button', Y.M.editor_atto.
                 return node.previousSibling.textContent ||
                     getPrecedingText(node.previousSibling);
             }
+
             if (selection.anchorOffset !== 0) {
                 if (selection.anchorNode.hasChildNodes()) {
                     // Find text before the node indicated by offset.
@@ -173,7 +159,7 @@ Y.namespace('M.atto_titlewbq').Button = Y.Base.create('button', Y.M.editor_atto.
                 precedingText = getPrecedingText(selection.anchorNode);
             }
 
-            if (precedingText.replace(/.*\n/, '')) {
+            if (precedingText && !/\n$/m.test(precedingText)) {
                 return;
             }
 
@@ -181,12 +167,13 @@ Y.namespace('M.atto_titlewbq').Button = Y.Base.create('button', Y.M.editor_atto.
             e.preventDefault();
             this.safeOutdent();
 
-            // Firefox will not save selection correctly in editor is anchor node.
+            // Firefox will not save selection correctly if editor is anchor node.
             if (this.editor.compareTo(selection.anchorNode)) {
                var range = selection.getRangeAt(0);
                range.collapseToPoint(selection.anchorNode.childNodes.item(selection.anchorOffset), 0);
                selection.setSingleRange(range);
             }
+            selection.refresh();
 
         }, 'backspace', this);
 
@@ -194,7 +181,42 @@ Y.namespace('M.atto_titlewbq').Button = Y.Base.create('button', Y.M.editor_atto.
     },
 
     /**
-     * Outdent blockquote is a manner consistent across browsers
+     * Prevent insertion of new spans with CSS by browser
+     * @method preventStyling
+     */
+    preventStyling: function() {
+        // Mark prexistant span elements.
+        this.editor.all('span').addClass('prexisting');
+
+        // Fish out span elements that are created by browser after a backspace.
+        Y.soon(Y.bind(function() {
+            // Save selection and remove display attributes.
+            var selection = window.rangy.saveSelection();
+            this.editor.all('.rangySelectionBoundary').setStyle('display', null);
+
+            var hook = Y.Node.create('<span class="prexisting"></span>');
+            this.editor.all('span').each(function(span)  {
+                if (span.test('.prexisting') || !span.hasChildNodes() || span.test('.rangySelectionBoundary')) {
+                    return;
+                }
+                hook = span.appendChild(hook);
+                hook.unwrap();
+            });
+            // Clean up markers.
+            this.editor.all('span[class="prexisting"]').removeAttribute('class');
+            this.editor.all('span.prexisting').removeClass('prexisting');
+            hook.remove(true);
+
+            // Restore selection.
+            window.rangy.restoreSelection(selection);
+
+            // Save selection so that editor restores it correctly if focus is lost.
+            this.saveSelection();
+        }, this));
+    },
+
+    /**
+     * Outdent blockquote in a manner consistent across browsers
      * @method safeOutdent
      */
     safeOutdent: function() {
@@ -222,8 +244,7 @@ Y.namespace('M.atto_titlewbq').Button = Y.Base.create('button', Y.M.editor_atto.
         this.editor.all('.rangySelectionBoundary').setStyle('display', null);
 
         // Find an ancestor of all blockquotes that may be outdented.
-        var container = Y.one(this.get('host').getSelectionParentNode()).ancestor('blockquote', true) ||
-            Y.one(this.get('host').getSelectionParentNode());
+        var container = Y.one(this.getSelectionParentNode()).ancestor('blockquote', true) || Y.one(this.getSelectionParentNode());
         container
             .all('blockquote')
             .each(function(blockquote) {
